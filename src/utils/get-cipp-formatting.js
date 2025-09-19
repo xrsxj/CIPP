@@ -7,6 +7,8 @@ import {
   Shield,
   Description,
   GroupOutlined,
+  PrecisionManufacturing,
+  BarChart,
 } from "@mui/icons-material";
 import { Chip, Link, SvgIcon } from "@mui/material";
 import { Box } from "@mui/system";
@@ -54,6 +56,8 @@ export const getCippFormatting = (data, cellName, type, canReceive, flatten = tr
     portal_security: Shield,
     portal_compliance: CompassCalibration,
     portal_sharepoint: Description,
+    portal_platform: PrecisionManufacturing,
+    portal_bi: BarChart,
   };
 
   // Create a helper function to render chips with CollapsibleChipList
@@ -170,7 +174,7 @@ export const getCippFormatting = (data, cellName, type, canReceive, flatten = tr
     "latestDataCollection",
   ];
 
-  const matchDateTime = /[dD]ate[tT]ime/;
+  const matchDateTime = /([dD]ate[tT]ime|[Ee]xpiration)/;
   if (timeAgoArray.includes(cellName) || matchDateTime.test(cellName)) {
     return isText && canReceive === false ? (
       new Date(data).toLocaleString() // This runs if canReceive is false and isText is true
@@ -196,16 +200,29 @@ export const getCippFormatting = (data, cellName, type, canReceive, flatten = tr
     return isText ? data : data;
   }
 
-  if (
-    cellName === "alignmentScore" ||
-    cellName === "LicenseMissingPercentage" ||
-    cellName === "combinedAlignmentScore"
-  ) {
+  // Handle log message field
+  const messageFields = ["Message"];
+  if (messageFields.includes(cellName)) {
+    if (typeof data === "string" && data.length > 120) {
+      return isText ? data : `${data.substring(0, 120)}...`;
+    }
+    return isText ? data : data;
+  }
+
+  if (cellName === "alignmentScore" || cellName === "combinedAlignmentScore") {
     // Handle alignment score, return a percentage with a label
     return isText ? (
       `${data}%`
     ) : (
       <LinearProgressWithLabel colourLevels={true} variant="determinate" value={data} />
+    );
+  }
+
+  if (cellName === "LicenseMissingPercentage") {
+    return isText ? (
+      `${data}%`
+    ) : (
+      <LinearProgressWithLabel colourLevels={"flipped"} variant="determinate" value={data} />
     );
   }
   if (cellName === "RepeatsEvery") {
@@ -288,11 +305,22 @@ export const getCippFormatting = (data, cellName, type, canReceive, flatten = tr
   ) {
     //check if data is an array.
     if (Array.isArray(data)) {
+      // Filter out null/undefined values and map the valid items
+      const validItems = data.filter((item) => item !== null && item !== undefined);
+
+      if (validItems.length === 0) {
+        return isText ? (
+          "No data"
+        ) : (
+          <Chip variant="outlined" label="No data" size="small" color="info" />
+        );
+      }
+
       return isText
-        ? data.join(", ")
+        ? validItems.map((item) => (item?.label !== undefined ? item.label : item)).join(", ")
         : renderChipList(
-            data.map((item, key) => {
-              const itemText = item?.label ? item.label : item;
+            validItems.map((item, key) => {
+              const itemText = item?.label !== undefined ? item.label : item;
               let icon = null;
 
               if (item?.type === "Group") {
@@ -317,7 +345,16 @@ export const getCippFormatting = (data, cellName, type, canReceive, flatten = tr
             })
           );
     } else {
-      const itemText = data?.label ? data.label : data;
+      // Handle null/undefined single element
+      if (data === null || data === undefined) {
+        return isText ? (
+          "No data"
+        ) : (
+          <Chip variant="outlined" label="No data" size="small" color="info" />
+        );
+      }
+
+      const itemText = data?.label !== undefined ? data.label : data;
       let icon = null;
 
       if (data?.type === "Group") {
@@ -333,7 +370,6 @@ export const getCippFormatting = (data, cellName, type, canReceive, flatten = tr
           </SvgIcon>
         );
       }
-
       return isText ? itemText : <CippCopyToClipBoard text={itemText} type="chip" icon={icon} />;
     }
   }
@@ -354,6 +390,26 @@ export const getCippFormatting = (data, cellName, type, canReceive, flatten = tr
             />
           ));
     }
+  }
+  if (cellName === "standardType") {
+    return isText ? (
+      data
+    ) : (
+      <Chip
+        variant="outlined"
+        label={data === "drift" ? "Drift Standard" : "Classic Standard"}
+        size="small"
+        color="info"
+      />
+    );
+  }
+
+  if (cellName === "type" && data === "drift") {
+    return isText ? (
+      "Drift Standard"
+    ) : (
+      <Chip variant="outlined" label="Drift Standard" size="small" color="info" />
+    );
   }
 
   if (cellName === "ClientId" || cellName === "role") {
