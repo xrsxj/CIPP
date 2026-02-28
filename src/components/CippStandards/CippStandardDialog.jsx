@@ -102,9 +102,6 @@ const StandardCard = memo(
             height: "100%",
             display: "flex",
             flexDirection: "column",
-            ...(isNewStandard(standard.addedDate) && {
-              mt: 1.5, // Add top margin to accommodate the "New" label
-            }),
           }}
         >
           {isNewStandard(standard.addedDate) && (
@@ -123,6 +120,22 @@ const StandardCard = memo(
               }}
             />
           )}
+          {standard.deprecated && (
+            <Chip
+              label="Deprecated"
+              size="small"
+              color="error"
+              sx={{
+                position: "absolute",
+                top: -10,
+                right: 12,
+                zIndex: 1,
+                fontSize: "0.7rem",
+                height: 20,
+                fontWeight: "bold",
+              }}
+            />
+          )}
           <Card
             id={`standard-card-${standard.name}`}
             sx={{
@@ -131,10 +144,16 @@ const StandardCard = memo(
               height: "100%",
               flex: 1,
               position: "relative",
-              ...(isNewStandard(standard.addedDate) && {
+              ...(standard.deprecated && {
                 border: "2px solid",
-                borderColor: "success.main",
+                borderColor: "error.main",
+                opacity: 0.7,
               }),
+              ...(isNewStandard(standard.addedDate) &&
+                !standard.deprecated && {
+                  border: "2px solid",
+                  borderColor: "success.main",
+                }),
             }}
           >
             <CardContent sx={{ flexGrow: 1, pt: 3, pb: 1 }}>
@@ -243,7 +262,34 @@ const StandardCard = memo(
             </CardContent>
 
             <CardContent sx={{ pt: 1, pb: 2 }}>
-              {standard.multiple ? (
+              {standard.deprecated ? (
+                <Box>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={isSelected}
+                        onChange={handleToggle}
+                        color="primary"
+                        edge="start"
+                        size="medium"
+                        disableRipple
+                        disabled={!isSelected}
+                      />
+                    }
+                    label={
+                      isSelected
+                        ? "Remove this standard from the template"
+                        : "This standard is deprecated"
+                    }
+                  />
+                  {!isSelected && (
+                    <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                      This standard is deprecated and cannot be added. Please use an alternative
+                      standard if available.
+                    </Typography>
+                  )}
+                </Box>
+              ) : standard.multiple ? (
                 <IconButton
                   color="primary"
                   disabled={isButtonDisabled}
@@ -263,6 +309,7 @@ const StandardCard = memo(
                       size="medium"
                       // Disable animation for better performance
                       disableRipple
+                      disabled={isButtonDisabled}
                     />
                   }
                   label="Add this standard to the template"
@@ -324,12 +371,12 @@ const VirtualizedStandardGrid = memo(({ items, renderItem }) => {
 
   return (
     <Virtuoso
-      style={{ height: "calc(90vh - 300px)", width: "100%" }}
+      style={{ height: "100%", width: "100%" }}
       totalCount={rows.length}
       overscan={5}
       defaultItemHeight={320} // Provide estimated row height for better virtualization
       itemContent={(index) => (
-        <Box sx={{ pt: index === 0 ? 0 : 2 }}>
+        <Box sx={{ pt: index === 0 ? 1.2 : 2, pb: index === rows.length - 1 ? 3 : 0 }}>
           <Grid
             container
             spacing={2}
@@ -354,7 +401,7 @@ VirtualizedStandardGrid.displayName = "VirtualizedStandardGrid";
 const CompactStandardList = memo(
   ({ items, selectedStandards, handleToggleSingleStandard, handleAddClick, isButtonDisabled }) => {
     return (
-      <List sx={{ width: "98%", bgcolor: "background.paper" }}>
+      <List sx={{ width: "98%", bgcolor: "background.paper", pb: 3 }}>
         {items.map(({ standard, category }) => {
           const isSelected = !!selectedStandards[standard.name];
 
@@ -381,10 +428,16 @@ const CompactStandardList = memo(
                 "&:hover": {
                   bgcolor: "action.hover",
                 },
-                ...(isNewStandard(standard.addedDate) && {
-                  borderColor: "success.main",
+                ...(standard.deprecated && {
+                  borderColor: "error.main",
                   borderWidth: "2px",
+                  opacity: 0.7,
                 }),
+                ...(isNewStandard(standard.addedDate) &&
+                  !standard.deprecated && {
+                    borderColor: "success.main",
+                    borderWidth: "2px",
+                  }),
               }}
             >
               <ListItemText
@@ -393,6 +446,14 @@ const CompactStandardList = memo(
                     <Typography variant="subtitle1" sx={{ fontWeight: "medium" }}>
                       {standard.label}
                     </Typography>
+                    {standard.deprecated && (
+                      <Chip
+                        label="Deprecated"
+                        size="small"
+                        color="error"
+                        sx={{ fontSize: "0.7rem", height: 20, fontWeight: "bold" }}
+                      />
+                    )}
                     {isNewStandard(standard.addedDate) && (
                       <Chip
                         label="New"
@@ -505,7 +566,30 @@ const CompactStandardList = memo(
                 }
               />
               <ListItemSecondaryAction>
-                {standard.multiple ? (
+                {standard.deprecated ? (
+                  isSelected ? (
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={isSelected}
+                          onChange={handleToggle}
+                          color="primary"
+                          size="small"
+                        />
+                      }
+                      label="Remove"
+                      sx={{ mr: 1 }}
+                    />
+                  ) : (
+                    <Typography
+                      variant="caption"
+                      color="error"
+                      sx={{ maxWidth: 200, textAlign: "right", mr: 1 }}
+                    >
+                      Deprecated - Cannot be added
+                    </Typography>
+                  )
+                ) : standard.multiple ? (
                   <IconButton
                     color="primary"
                     disabled={isButtonDisabled}
@@ -960,6 +1044,7 @@ const CippStandardDialog = ({
         sx: {
           minWidth: "720px",
           maxHeight: "90vh",
+          height: "90vh",
           display: "flex",
           flexDirection: "column",
         },
@@ -969,7 +1054,7 @@ const CippStandardDialog = ({
       <DialogContent
         sx={{
           backgroundColor: "background.default",
-          pb: 1,
+          pb: 0,
           flex: 1,
           overflow: "hidden",
           display: "flex",
@@ -1287,11 +1372,11 @@ const CippStandardDialog = ({
               Showing {processedItems.length} standard{processedItems.length !== 1 ? "s" : ""}
             </Typography>
             {viewMode === "card" ? (
-              <Box sx={{ flex: 1, minHeight: 0, height: "100%" }}>
+              <Box sx={{ flex: 1, minHeight: 0, height: "100%", pb: 1 }}>
                 <VirtualizedStandardGrid items={processedItems} renderItem={renderStandardCard} />
               </Box>
             ) : (
-              <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+              <Box sx={{ flex: 1, overflow: "auto", minHeight: 0, pb: 1 }}>
                 <CompactStandardList
                   items={processedItems}
                   selectedStandards={selectedStandards}
@@ -1304,7 +1389,16 @@ const CippStandardDialog = ({
           </Box>
         )}
       </DialogContent>
-      <DialogActions>
+      <DialogActions
+        sx={{
+          px: 3,
+          py: 2,
+          borderTop: "1px solid",
+          borderColor: "divider",
+          backgroundColor: "background.paper",
+          flexShrink: 0,
+        }}
+      >
         <Button variant="contained" onClick={handleClose}>
           Close
         </Button>
